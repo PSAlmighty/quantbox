@@ -20,12 +20,14 @@ def read_config_file():
     
     config_dict['cbo_seed_file'] = config.get('SEEDS', 'CBO_SEED_FILE')
     config_dict['cbo_fno_seed_file'] = config.get('SEEDS', 'CBO_FNO_SEED_FILE')
+    config_dict['data_access'] = config.get('FILES', 'DATA_ACCESS')
 
     config_dict['mkt_lotsize'] = config.get('REF', 'MKT_LOTSIZE')
 
-    config.dict['kite_api_key'] = config.get('KITE', 'KITE_API_KEY')
-    config.dict['kite_api_secret'] = config.get('KITE', 'KITE_API_SECRET')
+    config_dict['kite_api_key'] = config.get('KITE', 'KITE_API_KEY')
+    config_dict['kite_api_secret'] = config.get('KITE', 'KITE_API_SECRET')
 
+    config_dict['nse'] = config.get('KEYWORDS', 'NSE')
 
     return config_dict
 
