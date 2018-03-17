@@ -1,0 +1,6 @@
+1) Get Contract size from below link and list of stocks
+   - https://docs.google.com/spreadsheets/d/1sAU4LLt0Ocu7G3cYZxFoElfBFkH0ai5KaaPVQQRXB5c/edit#gid=0
+   - copy list of stocks from Zerodha, below list
+   - https://zerodha.com/margin-calculator/Futures/
+
+2) 
