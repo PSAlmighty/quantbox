@@ -1,5 +1,5 @@
 #!/usr/bin/python
-
+import re
 import logging
 from kiteconnect import KiteConnect, KiteTicker
 import constants as const
@@ -15,8 +15,9 @@ base_dict = {}
 config_dict = {}
 orders = {}
 NO_OF_PARAMS = 2
-
+sub_list = []
 # This is index into 
+#TODO: move this to const
 SCRIP_ID    = 0
 ACTION_ID   = 1
 TRIGGER_ID  = 2
@@ -131,41 +132,49 @@ def generate_orders(scrip, ohlc, open_price):
     
     buy_outstring = get_order_string(scrip, "BUY", buy_price)
     sell_outstring = get_order_string(scrip, "SELL", sell_price)
+   
     
     return buy_outstring, sell_outstring
     
 ################################################################################
-# Function: get_yesterdays_ohlc()
+# Function: get_yesterdays_fno_ohlc()
 # This function read bhavcopy file and gets the ohlc
 # https://www.nseindia.com/products/content/equities/equities/archieve_eq.htm
 # Format of each line contains 
-# 20MICRONS,EQ,51.75,52,50.5,50.65,50.65,52,68773,3502793.35,16-MAR-2018,942,INE144J01027,
+# ['FUTSTK', 'WIPRO', '28-Mar-2018', '0', 'XX', '295.15', '303', '293', '293.8', '293.8', '3628', '25921.62', '30472800', '945600', '15-MAR-2018', '\n'] 
 # scrip_index = 0
 # open_index = 2
 # high_index = 3
 # low_index = 4
 # close_index = 5
 ################################################################################
-def get_yesterdays_ohlc(f_name):
-    
+def get_yesterdays_fno_ohlc(f_name):
+    #print fno_dict
+    contract = config_dict['contract_date']
     fp = open(f_name)
     for each in fp:
         each = each.split(",")
-        if each[1] != "EQ":
+        if each[0] != "FUTSTK":
             continue
-        if float(each[3]) < float(config_dict['start_price']):
+        if each[2] != contract:
             continue
-        if float(each[3]) > float(config_dict['end_price']):
+
+        if float(each[5]) < float(config_dict['start_price']):
+            continue
+        if float(each[5]) > float(config_dict['end_price']):
             continue
         
-        if each[0] in fno_dict:
+        if each[1] in fno_dict:
             ohlc_dict = {}
-            ohlc_dict["open"] = each[2]
-            ohlc_dict["high"] = each[3]
-            ohlc_dict["low"] = each[4]
-            ohlc_dict["close"] = each[5]
-            base_dict[each[0]] = ohlc_dict
+            ohlc_dict["open"] = each[5]
+            ohlc_dict["high"] = each[6]
+            ohlc_dict["low"] = each[7]
+            ohlc_dict["close"] = each[8]
+            base_dict[each[1]] = ohlc_dict
 
+    print "-------------------------------------------------------------"
+    print base_dict
+    print "-------------------------------------------------------------"
     return base_dict
 
 ################################################################################
@@ -216,8 +225,6 @@ def main():
     global config_dict
     global orders
 
-    inst_token = []
-
     #TODO: Add argparser for validating input
     if len(sys.argv) < NO_OF_PARAMS:
         print "Invalid number of params"
@@ -230,8 +237,7 @@ def main():
     fno_dict = utils.get_fno_dict()
 
     # get yesterdays high low
-    base_dict = get_yesterdays_ohlc(sys.argv[1])
-
+    base_dict = get_yesterdays_fno_ohlc(sys.argv[1])
     #simulate(sys.argv[2])
 
     #open kite connection 
@@ -240,22 +246,33 @@ def main():
     else:
         request_token = None
     
-    kite = kite_utils.kite_login(request_token)
+
+    api_key, access_token, kite = kite_utils.kite_login(request_token)
     # get instrument list
     quote_list = []
-    data = kite.instruments("NSE")
-    for each in fno_dict:
-        for instrument in data:
-            if each == instrument['tradingsymbol']:
-                entry = "NSE:" + str(instrument['tradingsymbol'])
-                quote_list.append(entry)
-    
+    data = kite.instruments("NFO")
+    for each in data:
+        if each['instrument_type'] != 'FUT':
+            continue
+
+        if config_dict['contract_str'] not in each['tradingsymbol']:
+            continue
+
+        entry = "NFO:" + str(each['tradingsymbol'])
+        quote_list.append(entry)
+        sub_list.append(each['instrument_token']) 
     # open file to write buy/sell orders
-    fp = open(config_dict['cbo_seed_file'], "w")
+    fp = open(config_dict['cbo_fno_seed_file'], "w")
     count = int(0)
     quotes = kite.quote(quote_list)
+    order_dict = {}
     for each in quotes:
+        
         scrip = each.split(":")[1].strip("\n")
+        m = re.search("\d", scrip)
+        if m:
+            scrip = scrip[:m.start()]
+        
         if float(quotes[each]["ohlc"]["open"]) < float(config_dict['start_price']):
             continue
         
@@ -263,44 +280,74 @@ def main():
             continue
 
         count = int(count) + int(1);
-        buy, sell = generate_orders(scrip, base_dict[scrip], quotes[each]['ohlc']['open'])
-        if (buy != None):
-            fp.write(buy)
-        if (sell != None):
-            fp.write(sell)
+        if scrip in base_dict:
+            buy, sell = generate_orders(scrip, base_dict[scrip], quotes[each]['ohlc']['open'])
+            if (buy != None):
+                buy_dict = {}
+                each = buy.split(" ")
+                buy_dict['price'] = each[2]
+                buy_dict['target'] = float(utils.get_floating_value(float(each[2]) +  float(each[4])))
+                buy_dict['stoploss'] = float(utils.get_floating_value(float(each[2]) - float(each[5])))
+                buy_dict['trade_active'] = False
+                order_dict[scrip] = {}
+                order_dict[scrip]['buy'] = buy_dict
+                fp.write(buy)
+            if (sell != None):
+                sell_dict = {}
+                each = sell.split(" ")
+                sell_dict['price'] = each[2]
+                sell_dict['target'] = float(utils.get_floating_value(float(each[2]) -  float(each[4])))
+                sell_dict['stoploss'] = float(utils.get_floating_value(float(each[2]) + float(each[5])))
+                sell_dict['trade_active'] = False
+                order_dict[scrip] = {}
+                order_dict[scrip]['sell'] = sell_dict
+                fp.write(sell)
     fp.close()
-    
-    # push all the orders
-    order_list = []
-    fp = open(config_dict['cbo_seed_file'])
-    for each in fp:
-        if not each.startswith('#'):
-            each = each.rstrip()
-            order_list.append(each.split(" "))
+    print order_dict
+    kws = KiteTicker(api_key, access_token, debug=False)
+    kws.on_ticks = on_ticks
+    kws.on_connect = on_connect
+    kws.on_close = on_close
+    kws.on_error = on_error
+    kws.on_noreconnect = on_noreconnect
+    kws.on_reconnect = on_reconnect
+    kws.on_order_update = on_order_update
+    kws.connect()
 
-    fp.close()
-    
-    for each in order_list:
-        try:
-            print each
-            order_id = kite.place_order(
-                    tradingsymbol=str(each[SCRIP_ID]),
-                    exchange="NSE", 
-                    transaction_type=str(each[ACTION_ID]),
-                    quantity=1,
-                    order_type="SL",
-                    product="BO",
-                    price = float(each[PRICE_ID]),
-                    trigger_price = float(each[TRIGGER_ID]),
-                    squareoff = float(each[TARGET_ID]),
-                    stoploss = float(each[STOPLOSS_ID]),
-                    variety = "bo",
-                    validity = "DAY"
-                    )
 
-            logging.info("Order placed. ID is: {}".format(order_id))
-        except Exception as e:
-            logging.info("Order placement failed: {}".format(e.message))
+def on_ticks(ws, ticks):
+    print "Hello"
+
+
+def on_connect(ws, response):
+     
+    sub_list = []
+    print "============================================"
+    print sub_list
+    print "============================================"
+
+    ws.subscribe([2800641, 2752769, 1207553, 3735553, 356865, 5444865, 302337, 779521, 3905025, 103425, 2939649, 359937, 738561, 87297, 8042241, 1837825, 415745, 2905857, 315393, 2763265, 548353, 4995329, 857857, 884737, 340481, 173057, 784129, 2955009, 737793, 2865921, 108033, 134657, 1076225, 3876097, 101121, 492033, 681985, 41729, 2953217, 25601, 3832833, 873217, 1850625, 2889473, 245249, 140033, 2672641, 633601, 878593, 4278529, 3365633, 3431425, 2883073, 1895937, 969473, 1041153, 900609, 584449, 2952193, 2911489, 348929, 4488705, 1270529, 49409, 1346049, 5633, 1215745, 871681, 6054401, 3513601, 2997505, 4343041, 2747905, 98049, 3861249, 60417, 3400961, 2079745, 1510401, 40193, 951809, 3529217, 141569, 837889, 1195009, 1256193, 3789569, 94977, 975873, 70401, 424961, 4314113, 408065, 3675137, 319233, 7670273, 2714625, 387841, 895745, 2796801, 325121, 519937, 3834113, 215553, 160001, 85761, 952577, 364545, 160769, 897537, 177665, 2513665, 5215745, 511233, 4632577, 197633, 486657, 1921537, 112129, 3465729, 3663105, 320001, 731905, 4159745, 3050241, 806401, 7455745, 2170625, 7458561, 1102337, 2730497, 3932673])
+    ws.set_mode(ws.MODE_FULL, [2800641, 2752769, 1207553, 3735553, 356865, 5444865, 302337, 779521, 3905025, 103425, 2939649, 359937, 738561, 87297, 8042241, 1837825, 415745, 2905857, 315393, 2763265, 548353, 4995329, 857857, 884737, 340481, 173057, 784129, 2955009, 737793, 2865921, 108033, 134657, 1076225, 3876097, 101121, 492033, 681985, 41729, 2953217, 25601, 3832833, 873217, 1850625, 2889473, 245249, 140033, 2672641, 633601, 878593, 4278529, 3365633, 3431425, 2883073, 1895937, 969473, 1041153, 900609, 584449, 2952193, 2911489, 348929, 4488705, 1270529, 49409, 1346049, 5633, 1215745, 871681, 6054401, 3513601, 2997505, 4343041, 2747905, 98049, 3861249, 60417, 3400961, 2079745, 1510401, 40193, 951809, 3529217, 141569, 837889, 1195009, 1256193, 3789569, 94977, 975873, 70401, 424961, 4314113, 408065, 3675137, 319233, 7670273, 2714625, 387841, 895745, 2796801, 325121, 519937, 3834113, 215553, 160001, 85761, 952577, 364545, 160769, 897537, 177665, 2513665, 5215745, 511233, 4632577, 197633, 486657, 1921537, 112129, 3465729, 3663105, 320001, 731905, 4159745, 3050241, 806401, 7455745, 2170625, 7458561, 1102337, 2730497, 3932673])
+
+def on_close(ws, code, reason):
+    logging.error("closed connection on close: {} {}".format(code, reason))
+
+
+def on_error(ws, code, reason):
+    logging.error("closed connection on error: {} {}".format(code, reason))
+
+
+def on_noreconnect(ws):
+    logging.error("Reconnecting the websocket failed")
+
+
+def on_reconnect(ws, attempt_count):
+    logging.debug("Reconnecting the websocket: {}".format(attempt_count))
+
+
+def on_order_update(ws, data):
+    print("order update: ", data)
+
 
 
 

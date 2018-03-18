@@ -28,6 +28,8 @@ def read_config_file():
     config_dict['kite_api_secret'] = config.get('KITE', 'KITE_API_SECRET')
 
     config_dict['nse'] = config.get('KEYWORDS', 'NSE')
+    config_dict['contract_date'] = config.get('FNO', 'CONTRACT_DATE')
+    config_dict['contract_str'] = config.get('FNO', 'CONTRACT_STR')
 
     return config_dict
 
@@ -80,17 +82,107 @@ def get_fno_dict():
         fno_dict[row[1]] = row[3]
         count = count + int(1)
 
-    print fno_dict
     return fno_dict
+
+################################################################################
+################################################################################
+def truncate(f, n):
+    '''Truncates/pads a float f to n decimal places without rounding'''
+    s = '{}'.format(f)
+    if 'e' in s or 'E' in s:
+        return '{0:.{1}f}'.format(f, n)
+    i, p, d = s.partition('.')
+    return '.'.join([i, (d+'0'*n)[:n]])
+
+def get_floating_value(number):
+    number = truncate(number, 2)
+    i, p, d = str(number).partition(".") 
+    r = int(d)%10
+    if (r == 1):
+        d = int(d) - r
+    if (r == 2):
+        d = int(d) - r
+    if (r == 3):
+        d = int(d) + 2
+    if (r == 4):
+        d = int(d) + 1
+    if (r == 6):
+        d = int(d) - 1
+    if (r == 7):
+        d = int(d) - 2
+    if (r == 8):
+        d = int(d) + 2
+    if (r == 9):
+        d = int(d) + 1
+
+    number = float(str(i) + str(".") + str(d))
+    return number
+
+################################################################################
+################################################################################
+def get_closet_support(number):
+    number = truncate(number, 2)
+    i, p, d  = str(number).partition(".")
+    r = int(d)%10
+    if (r == 0):
+        d = int(d) + 10
+    if (r == 1):
+        d = int(d) + 14
+    if (r == 2):
+        d = int(d) + 13
+    if (r == 3):
+        d = int(d) + 12
+    if (r == 4):
+        d = int(d) + 11
+    if (r == 5):
+        d = int(d) + 10
+    if (r == 6):
+        d = int(d) + 9
+    if (r == 7):
+        d = int(d) + 8
+    if (r == 8):
+        d = int(d) + 7
+    if (r == 9):
+        d = int(d) + 6
+
+    number = str(i) + str(".") + str(d)
+    number = truncate(number, 2)
+    return number
+
+################################################################################
+################################################################################
+def get_closet_restistance(number):
+    number = truncate(number, 2)
+    i, p, d  = str(number).partition(".")
+    r = int(d)%10
+    if (r == 0):
+        d = int(d) + 10
+    if (r == 1):
+        d = int(d) + 14
+    if (r == 2):
+        d = int(d) + 13
+    if (r == 3):
+        d = int(d) + 12
+    if (r == 4):
+        d = int(d) + 11
+    if (r == 5):
+        d = int(d) + 10
+    if (r == 6):
+        d = int(d) + 9
+    if (r == 7):
+        d = int(d) + 8
+    if (r == 8):
+        d = int(d) + 7
+    if (r == 9):
+        d = int(d) + 6
+
+    number = str(i) + str(".") + str(d)
+    number = truncate(number, 2)
+    return number
 
 ################################################################################
 # Function: 
 ################################################################################
-
-
-
-
-
 
 def main():
     print "Testing ....\n"

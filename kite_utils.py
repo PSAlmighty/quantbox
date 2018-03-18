@@ -28,9 +28,9 @@ def kite_login(request_token):
     config.read(config_dict['data_access'])
     access_token = config.get('MAIN','DATA_ACCESS_TOKEN')
     
-    kite = KiteConnect(api_key=config_dict['kite_api_key'])
+    kite = KiteConnect(api_key="yvyxm4vynkq1pj8q")
     url = kite.login_url()
-     
+    api_key = "yvyxm4vynkq1pj8q"
     # Redirect the user to the login url obtained
     # from kite.login_url(), and receive the request_token
     # from the registered redirect url after the login flow.
@@ -42,10 +42,11 @@ def kite_login(request_token):
     else:
         data = kite.generate_session(request_token, api_secret=config_dict['kite_api_secret'])
         kite.set_access_token(data["access_token"])
+        access_token = data["access_token"]
         config.set('MAIN','DATA_ACCESS_TOKEN', data["access_token"])
 
         with open(config_dict['data_access'], 'wb') as configfile:
             config.write(configfile)
-
-    return kite
+    print kite
+    return api_key, access_token, kite
 

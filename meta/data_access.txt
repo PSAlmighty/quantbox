@@ -1,2 +1,3 @@
 [MAIN]
-DATA_ACCESS_TOKEN=kadfhafkafa
+data_access_token = xVwa4mYdn3AsykNb5IVhcnRLftxBv1kY
+
