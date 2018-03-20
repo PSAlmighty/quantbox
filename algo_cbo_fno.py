@@ -8,7 +8,7 @@ import os
 import utils
 import kite_utils
 import ConfigParser
-
+import datetime
 
 fno_dict = {}
 base_dict = {}
@@ -16,6 +16,8 @@ config_dict = {}
 orders = {}
 NO_OF_PARAMS = 2
 sub_list = []
+fno_mapping = {}
+order_dict = {}
 # This is index into 
 #TODO: move this to const
 SCRIP_ID    = 0
@@ -172,9 +174,6 @@ def get_yesterdays_fno_ohlc(f_name):
             ohlc_dict["close"] = each[8]
             base_dict[each[1]] = ohlc_dict
 
-    print "-------------------------------------------------------------"
-    print base_dict
-    print "-------------------------------------------------------------"
     return base_dict
 
 ################################################################################
@@ -224,7 +223,9 @@ def main():
     global base_dict
     global config_dict
     global orders
-
+    global sub_list
+    global fno_mapping
+    global order_dict
     #TODO: Add argparser for validating input
     if len(sys.argv) < NO_OF_PARAMS:
         print "Invalid number of params"
@@ -232,7 +233,6 @@ def main():
 
     # read config file
     config_dict = utils.read_config_file()
-    print config_dict
     # get list of fno
     fno_dict = utils.get_fno_dict()
 
@@ -248,6 +248,7 @@ def main():
     
 
     api_key, access_token, kite = kite_utils.kite_login(request_token)
+    
     # get instrument list
     quote_list = []
     data = kite.instruments("NFO")
@@ -260,12 +261,16 @@ def main():
 
         entry = "NFO:" + str(each['tradingsymbol'])
         quote_list.append(entry)
-        sub_list.append(each['instrument_token']) 
+        sub_list.append(int(each['instrument_token']))
+        fno_mapping[int(each['instrument_token'])] = str(each['tradingsymbol'])
+    print "=============================="
+    print fno_mapping
+    print "=============================="
+
     # open file to write buy/sell orders
     fp = open(config_dict['cbo_fno_seed_file'], "w")
     count = int(0)
     quotes = kite.quote(quote_list)
-    order_dict = {}
     for each in quotes:
         
         scrip = each.split(":")[1].strip("\n")
@@ -281,6 +286,8 @@ def main():
 
         count = int(count) + int(1);
         if scrip in base_dict:
+            scrip_fno = scrip +"18MARFUT"
+            print scrip_fno
             buy, sell = generate_orders(scrip, base_dict[scrip], quotes[each]['ohlc']['open'])
             if (buy != None):
                 buy_dict = {}
@@ -289,8 +296,8 @@ def main():
                 buy_dict['target'] = float(utils.get_floating_value(float(each[2]) +  float(each[4])))
                 buy_dict['stoploss'] = float(utils.get_floating_value(float(each[2]) - float(each[5])))
                 buy_dict['trade_active'] = False
-                order_dict[scrip] = {}
-                order_dict[scrip]['buy'] = buy_dict
+                order_dict[scrip_fno] = {}
+                order_dict[scrip_fno]['buy'] = buy_dict
                 fp.write(buy)
             if (sell != None):
                 sell_dict = {}
@@ -299,11 +306,13 @@ def main():
                 sell_dict['target'] = float(utils.get_floating_value(float(each[2]) -  float(each[4])))
                 sell_dict['stoploss'] = float(utils.get_floating_value(float(each[2]) + float(each[5])))
                 sell_dict['trade_active'] = False
-                order_dict[scrip] = {}
-                order_dict[scrip]['sell'] = sell_dict
+                order_dict[scrip_fno]['sell'] = sell_dict
                 fp.write(sell)
     fp.close()
+    print "-------------------------------------------------------"
     print order_dict
+    print "-------------------------------------------------------"
+
     kws = KiteTicker(api_key, access_token, debug=False)
     kws.on_ticks = on_ticks
     kws.on_connect = on_connect
@@ -316,18 +325,38 @@ def main():
 
 
 def on_ticks(ws, ticks):
-    print "Hello"
+    for each in ticks:
+        scrip = fno_mapping[each['instrument_token']]
+        if scrip in order_dict:
+            if each['last_price'] > order_dict[scrip]['buy']['price']:
+                if order_dict[scrip]['buy']['trade_active'] == False:
+                    order_dict[scrip]['buy']['trade_active'] = True
+                    fp = open("Test.txt", "a")
+                    outstring = datetime.datetime.now().strftime("%A") + " " + fno_mapping[each['instrument_token']] + " " + "BUY Got triggered\n"
+                    fp.write(outstring)
+                    fp.close()
+
+            if each['last_price'] < order_dict[scrip]['sell']['price']:
+                if order_dict[scrip]['sell']['trade_active'] == False:
+                    order_dict[scrip]['sell']['trade_active'] = True
+                    fp = open("Test.txt", "a")
+                    outstring = datetime.datetime.now().strftime("%A") + " " + fno_mapping[each['instrument_token']] + " " + "SELL Got triggered\n"
+                    fp.write(outstring)
+                    fp.close()
+        i = 1
+        #print "--------------------------"
+        #print fno_mapping[each['instrument_token']]
+        #print "--------------------------"
 
 
 def on_connect(ws, response):
-     
-    sub_list = []
+    ''' 
     print "============================================"
     print sub_list
     print "============================================"
-
-    ws.subscribe([2800641, 2752769, 1207553, 3735553, 356865, 5444865, 302337, 779521, 3905025, 103425, 2939649, 359937, 738561, 87297, 8042241, 1837825, 415745, 2905857, 315393, 2763265, 548353, 4995329, 857857, 884737, 340481, 173057, 784129, 2955009, 737793, 2865921, 108033, 134657, 1076225, 3876097, 101121, 492033, 681985, 41729, 2953217, 25601, 3832833, 873217, 1850625, 2889473, 245249, 140033, 2672641, 633601, 878593, 4278529, 3365633, 3431425, 2883073, 1895937, 969473, 1041153, 900609, 584449, 2952193, 2911489, 348929, 4488705, 1270529, 49409, 1346049, 5633, 1215745, 871681, 6054401, 3513601, 2997505, 4343041, 2747905, 98049, 3861249, 60417, 3400961, 2079745, 1510401, 40193, 951809, 3529217, 141569, 837889, 1195009, 1256193, 3789569, 94977, 975873, 70401, 424961, 4314113, 408065, 3675137, 319233, 7670273, 2714625, 387841, 895745, 2796801, 325121, 519937, 3834113, 215553, 160001, 85761, 952577, 364545, 160769, 897537, 177665, 2513665, 5215745, 511233, 4632577, 197633, 486657, 1921537, 112129, 3465729, 3663105, 320001, 731905, 4159745, 3050241, 806401, 7455745, 2170625, 7458561, 1102337, 2730497, 3932673])
-    ws.set_mode(ws.MODE_FULL, [2800641, 2752769, 1207553, 3735553, 356865, 5444865, 302337, 779521, 3905025, 103425, 2939649, 359937, 738561, 87297, 8042241, 1837825, 415745, 2905857, 315393, 2763265, 548353, 4995329, 857857, 884737, 340481, 173057, 784129, 2955009, 737793, 2865921, 108033, 134657, 1076225, 3876097, 101121, 492033, 681985, 41729, 2953217, 25601, 3832833, 873217, 1850625, 2889473, 245249, 140033, 2672641, 633601, 878593, 4278529, 3365633, 3431425, 2883073, 1895937, 969473, 1041153, 900609, 584449, 2952193, 2911489, 348929, 4488705, 1270529, 49409, 1346049, 5633, 1215745, 871681, 6054401, 3513601, 2997505, 4343041, 2747905, 98049, 3861249, 60417, 3400961, 2079745, 1510401, 40193, 951809, 3529217, 141569, 837889, 1195009, 1256193, 3789569, 94977, 975873, 70401, 424961, 4314113, 408065, 3675137, 319233, 7670273, 2714625, 387841, 895745, 2796801, 325121, 519937, 3834113, 215553, 160001, 85761, 952577, 364545, 160769, 897537, 177665, 2513665, 5215745, 511233, 4632577, 197633, 486657, 1921537, 112129, 3465729, 3663105, 320001, 731905, 4159745, 3050241, 806401, 7455745, 2170625, 7458561, 1102337, 2730497, 3932673])
+    ''' 
+    ws.subscribe(sub_list)
+    ws.set_mode(ws.MODE_FULL, sub_list);
 
 def on_close(ws, code, reason):
     logging.error("closed connection on close: {} {}".format(code, reason))
@@ -347,7 +376,6 @@ def on_reconnect(ws, attempt_count):
 
 def on_order_update(ws, data):
     print("order update: ", data)
-
 
 
 

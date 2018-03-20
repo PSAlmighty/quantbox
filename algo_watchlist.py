@@ -10,11 +10,13 @@ import kite_utils
 import ConfigParser
 
 
+# python program_name ref_file watchlist <request token>
+
 fno_dict = {}
 base_dict = {}
 config_dict = {}
 orders = {}
-NO_OF_PARAMS = 2
+NO_OF_PARAMS = 3
 
 # This is index into 
 SCRIP_ID    = 0
@@ -226,8 +228,9 @@ def main():
     # read config file
     config_dict = utils.read_config_file()
     print config_dict
+    
     # get list of fno
-    fno_dict = utils.get_fno_dict()
+    fno_dict = utils.get_watchlist_dict(sys.argv[2])
 
     # get yesterdays high low
     base_dict = get_yesterdays_ohlc(sys.argv[1])
@@ -236,7 +239,7 @@ def main():
 
     #open kite connection 
     if len(sys.argv) == int(NO_OF_PARAMS) + int(1):
-        request_token = sys.argv[2]
+        request_token = sys.argv[3]
     else:
         request_token = None
     
@@ -301,15 +304,9 @@ def main():
         each = each.rstrip()
         order_list.append(each.split(" "))
     fp.close()
-    print "----------------------------------------------------------------"
-    print order_list
-    print "----------------- End of order list ----------------------------"
-    
     
     for each in order_list:
         try:
-            print each
-            print each
             order_id = kite.place_order(
                     tradingsymbol=str(each[SCRIP_ID]),
                     exchange="NSE", 

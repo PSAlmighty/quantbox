@@ -40,7 +40,7 @@ def kite_login(request_token):
     if request_token == None:
         kite.set_access_token(access_token)
     else:
-        data = kite.generate_session(request_token, api_secret=config_dict['kite_api_secret'])
+        data = kite.generate_session(request_token, api_secret="53ekyylrx3orbb85l8isj4o291o22g31")
         kite.set_access_token(data["access_token"])
         access_token = data["access_token"]
         config.set('MAIN','DATA_ACCESS_TOKEN', data["access_token"])

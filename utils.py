@@ -84,6 +84,27 @@ def get_fno_dict():
 
     return fno_dict
 
+
+################################################################################
+
+################################################################################
+def get_watchlist_dict(fname):
+    fno_dict = {}
+    watchlist = []
+    config_dict = read_config_file()
+    fq = open(config_dict['mkt_lotsize'])
+    fp = open(fname)
+    for each in fp:
+        each = each.strip()
+        watchlist.append(each)
+
+    for each in fq:
+        row = each.split(',')
+        if row[1] in watchlist:
+            fno_dict[row[1]] = row[3]
+
+    return fno_dict
+
 ################################################################################
 ################################################################################
 def truncate(f, n):
