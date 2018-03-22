@@ -72,24 +72,44 @@ def check_open_price(scrip, ohlc, open_price):
 # Function: get_order_string()
 # This function will return the 
 ################################################################################
-def get_order_string(scrip, action, price):
+def get_order_string(scrip, action, price, stoploss_buy, stoploss_sell):
     outstring = ""
 
     if action == "BUY":
         trigger_price = float(utils.get_floating_value(price)) +  float(0.10)
         price = trigger_price
         target = float(utils.get_floating_value(float(trigger_price) * float(config_dict['target_lock'])))
-        stoploss = float(utils.get_floating_value(float(trigger_price) * float(config_dict['stoploss_lock'])))
+        if (stoploss_buy == None):
+            stoploss = float(utils.get_floating_value(float(trigger_price) * float(config_dict['stoploss_lock'])))
+        else:
+            stoploss = float(utils.get_floating_value(float(price) - float(stoploss_buy)))
+        #stoploss = float(utils.get_floating_value(float(trigger_price) * float(config_dict['stoploss_lock'])))
         outstring = scrip + " " + action + " " + str(trigger_price) + " " + str(price) + " " + str(target) + " " + str(stoploss) +"\n"
 
     if action == "SELL":
         trigger_price = float(utils.get_floating_value(price)) -  float(0.10)
         price = trigger_price
         target = float(utils.get_floating_value(float(trigger_price) * float(config_dict['target_lock'])))
-        stoploss = float(utils.get_floating_value(float(trigger_price) * float(config_dict['stoploss_lock'])))
+        if (stoploss_sell == None):
+            stoploss = float(utils.get_floating_value(float(trigger_price) * float(config_dict['stoploss_lock'])))
+        else:
+            stoploss = float(utils.get_floating_value(float(stoploss_sell) - float(price)))
         outstring = scrip + " " + action + " " + str(trigger_price) + " " + str(price) + " " + str(target) + " " + str(stoploss) +"\n"
 
     return outstring
+
+
+################################################################################
+################################################################################
+def check_if_doji(ohlc):
+    print "inside checking doji \n"
+    if (float(ohlc['open']) > float(ohlc['close'])):
+        diff = float(float(ohlc['open']) -float(ohlc['close']))
+    else:
+        diff = float(float(ohlc['close']) -float(ohlc['open']))
+
+    if float(diff) < (float(ohlc['open']) * 0.0051):
+        return const.DOJI
 
 ################################################################################
 #
@@ -103,34 +123,56 @@ def generate_orders(scrip, ohlc, open_price):
     if ((ret == const.OPEN_GAP_UP) or (ret == const.OPEN_GAP_DOWN)):
         return buy_order, sell_order
     
-    if ret == const.OPEN_INSIDE_BODY_GREEN:
-        buy_price = ohlc['close']
-        sell_price = ohlc['open']
-
-    if ret == const.OPEN_INSIDE_BODY_RED:
-        buy_price = ohlc['open']
-        sell_price = ohlc['close']
-
-
-    if ret == const.OPEN_NEAR_HIGH_WICK_GREEN:
+    #check if doji
+    ret1 = check_if_doji(ohlc)
+    if ret1 == const.DOJI:
+        print "doji  ", scrip
         buy_price = ohlc['high']
-        sell_price = ohlc['open']
-    
-    if ret == const.OPEN_NEAR_HIGH_WICK_RED:
-        buy_price = ohlc['high']
-        sell_price = ohlc['close']
+        sell_price = ohlc['low']
+        stoploss_buy = None
+        stoploss_sell = None
+    else:
+
+        if ret == const.OPEN_INSIDE_BODY_GREEN:
+            buy_price = ohlc['close']
+            sell_price = ohlc['open']
+            stoploss_buy = open_price
+            stoploss_sell = open_price
+
+        if ret == const.OPEN_INSIDE_BODY_RED:
+            buy_price = ohlc['open']
+            sell_price = ohlc['close']
+            stoploss_buy = open_price
+            stoploss_sell = open_price
+
+
+        if ret == const.OPEN_NEAR_HIGH_WICK_GREEN:
+            buy_price = ohlc['high']
+            sell_price = ohlc['open']
+            stoploss_buy = ohlc['close']
+            stoploss_sell = None
         
+        if ret == const.OPEN_NEAR_HIGH_WICK_RED:
+            buy_price = ohlc['high']
+            sell_price = ohlc['close']
+            stoploss_buy = ohlc['open']
+            stoploss_sell = None
+            
+        
+        if ret == const.OPEN_NEAR_LOW_WICK_GREEN:
+            buy_price = ohlc['close']
+            sell_price = ohlc['low']
+            stoploss_buy = None
+            stoploss_sell = ohlc['open']
+
+        if ret == const.OPEN_NEAR_LOW_WICK_RED:
+            buy_price = ohlc['open']
+            sell_price = ohlc['low']
+            stoploss_buy = None
+            stoploss_sell = ohlc['close']
     
-    if ret == const.OPEN_NEAR_LOW_WICK_GREEN:
-        buy_price = ohlc['close']
-        sell_price = ohlc['low']
-    
-    if ret == const.OPEN_NEAR_LOW_WICK_RED:
-        buy_price = ohlc['open']
-        sell_price = ohlc['low']
-    
-    buy_outstring = get_order_string(scrip, "BUY", buy_price)
-    sell_outstring = get_order_string(scrip, "SELL", sell_price)
+    buy_outstring =  get_order_string(scrip, "BUY", buy_price, stoploss_buy, stoploss_sell)
+    sell_outstring = get_order_string(scrip, "SELL", sell_price, stoploss_buy, stoploss_sell)
     
     return buy_outstring, sell_outstring
     
@@ -233,7 +275,7 @@ def main():
     base_dict = get_yesterdays_ohlc(sys.argv[1])
 
     #simulate(sys.argv[2])
-
+    #return 
     #open kite connection 
     if len(sys.argv) == int(NO_OF_PARAMS) + int(1):
         request_token = sys.argv[2]
@@ -305,10 +347,8 @@ def main():
     print order_list
     print "----------------- End of order list ----------------------------"
     
-    
     for each in order_list:
         try:
-            print each
             print each
             order_id = kite.place_order(
                     tradingsymbol=str(each[SCRIP_ID]),
