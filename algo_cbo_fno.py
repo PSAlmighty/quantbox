@@ -6,7 +6,6 @@ import constants as const
 import sys
 import os
 import utils
-import kite_utils
 import ConfigParser
 import datetime
 
@@ -247,7 +246,7 @@ def main():
         request_token = None
     
 
-    api_key, access_token, kite = kite_utils.kite_login(request_token)
+    #api_key, access_token, kite = kite_utils.kite_login(request_token)
     
     # get instrument list
     quote_list = []

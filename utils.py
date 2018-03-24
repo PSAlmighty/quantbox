@@ -3,6 +3,44 @@ import ConfigParser
 import constants as const
 
 ################################################################################
+# Function: check_open_price()
+# This function is the crux of this algorithm
+# TODO: Write all the cases 
+################################################################################
+def check_open_price(ohlc, open_price):
+
+    if float(open_price) > float(ohlc['high']):
+        return const.OPEN_GAP_UP
+
+    if float(open_price) < float(ohlc['low']):
+        return const.OPEN_GAP_DOWN
+
+    #green candle
+    if float(ohlc['open']) < float(ohlc['close']):
+
+        if ((float(open_price) >= float(ohlc['open'])) and
+            (float(open_price) <= float(ohlc['close']))):
+            return const.OPEN_INSIDE_BODY_GREEN
+            
+        if float(open_price) > float(ohlc['close']):
+            return const.OPEN_NEAR_HIGH_WICK_GREEN
+    
+        else:
+            return const.OPEN_NEAR_LOW_WICK_GREEN
+    #red candle
+    else:
+
+        if ((float(open_price) >= float(ohlc['close'])) and
+            (float(open_price) <= float(ohlc['open']))):
+            return const.OPEN_INSIDE_BODY_RED
+        
+        if float(open_price) > float(ohlc['open']):
+            return const.OPEN_NEAR_HIGH_WICK_RED
+    
+        else: 
+            return const.OPEN_NEAR_LOW_WICK_RED
+
+################################################################################
 # Function: read_config_file
 # This function reads default config file which is quantbox.config 
 # It returns dictionary containing all the configuration related information 
@@ -84,6 +122,42 @@ def get_fno_dict():
 
     return fno_dict
 
+################################################################################
+# Function: get_yesterdays_ohlc()
+# This function read bhavcopy file and gets the ohlc
+# https://www.nseindia.com/products/content/equities/equities/archieve_eq.htm
+# Format of each line contains 
+# 20MICRONS,EQ,51.75,52,50.5,50.65,50.65,52,68773,3502793.35,16-MAR-2018,942,INE144J01027,
+# scrip_index = 0
+# open_index = 2
+# high_index = 3
+# low_index = 4
+# close_index = 5
+################################################################################
+def get_yesterdays_ohlc(f_name):
+    base_dict = {}
+    config_dict = read_config_file()
+    fno_dict = get_fno_dict()
+    fp = open(f_name)
+    for each in fp:
+        each = each.split(",")
+        if each[1] != "EQ":
+            continue
+		
+       	if float(each[3]) < float(config_dict['start_price']):
+            continue
+        if float(each[3]) > float(config_dict['end_price']):
+            continue
+
+        if each[0] in fno_dict:
+            ohlc_dict = {}
+            ohlc_dict["open"] = each[2]
+            ohlc_dict["high"] = each[3]
+            ohlc_dict["low"] = each[4]
+            ohlc_dict["close"] = each[5]
+            base_dict[each[0]] = ohlc_dict
+
+    return base_dict
 
 ################################################################################
 

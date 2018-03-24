@@ -6,7 +6,6 @@ import constants as const
 import sys
 import os
 import utils
-import kite_utils
 import ConfigParser
 
 
@@ -279,6 +278,15 @@ def main():
     
     # open file to write buy/sell orders
     fp = open(config_dict['cbo_seed_file'], "w")
+    
+    # write header
+    outstring = "########################################################################################\n"
+    fp.write(outstring)
+    outstring = "# watchlist file generated for " + time.strftime("%c") +"\n"
+    fp.write(outstring)
+    outstring = "########################################################################################\n"
+    fp.write(outstring)
+    
     count = int(0)
     quotes = kite.quote(quote_list)
     for each in quotes:
@@ -301,9 +309,15 @@ def main():
     order_list = []
     fp = open(config_dict['cbo_seed_file'])
     for each in fp:
+        #ignore line starting with #
+        if each.startswith("#"):
+            continue
         each = each.rstrip()
         order_list.append(each.split(" "))
     fp.close()
+    print "----------------------------------------------------------------"
+    print order_list
+    print "----------------- End of order list ----------------------------"
     
     for each in order_list:
         try:

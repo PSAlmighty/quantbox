@@ -6,9 +6,8 @@ import constants as const
 import sys
 import os
 import utils
-import kite_utils
 import ConfigParser
-
+import time
 
 fno_dict = {}
 base_dict = {}
@@ -74,6 +73,9 @@ def check_open_price(scrip, ohlc, open_price):
 ################################################################################
 def get_order_string(scrip, action, price, stoploss_buy, stoploss_sell):
     outstring = ""
+    
+    if (price == None):
+        return None
 
     if action == "BUY":
         trigger_price = float(utils.get_floating_value(price)) +  float(0.10)
@@ -83,7 +85,6 @@ def get_order_string(scrip, action, price, stoploss_buy, stoploss_sell):
             stoploss = float(utils.get_floating_value(float(trigger_price) * float(config_dict['stoploss_lock'])))
         else:
             stoploss = float(utils.get_floating_value(float(price) - float(stoploss_buy)))
-        #stoploss = float(utils.get_floating_value(float(trigger_price) * float(config_dict['stoploss_lock'])))
         outstring = scrip + " " + action + " " + str(trigger_price) + " " + str(price) + " " + str(target) + " " + str(stoploss) +"\n"
 
     if action == "SELL":
@@ -102,7 +103,6 @@ def get_order_string(scrip, action, price, stoploss_buy, stoploss_sell):
 ################################################################################
 ################################################################################
 def check_if_doji(ohlc):
-    print "inside checking doji \n"
     if (float(ohlc['open']) > float(ohlc['close'])):
         diff = float(float(ohlc['open']) -float(ohlc['close']))
     else:
@@ -136,37 +136,43 @@ def generate_orders(scrip, ohlc, open_price):
         if ret == const.OPEN_INSIDE_BODY_GREEN:
             buy_price = ohlc['close']
             sell_price = ohlc['open']
-            stoploss_buy = open_price
-            stoploss_sell = open_price
+            stoploss_buy = None
+            stoploss_sell = None
 
         if ret == const.OPEN_INSIDE_BODY_RED:
             buy_price = ohlc['open']
             sell_price = ohlc['close']
-            stoploss_buy = open_price
-            stoploss_sell = open_price
+            stoploss_buy = None
+            stoploss_sell = None
+            #stoploss_buy = open_price
+            #stoploss_sell = open_price
 
 
         if ret == const.OPEN_NEAR_HIGH_WICK_GREEN:
             buy_price = ohlc['high']
-            sell_price = ohlc['open']
+            #sell_price = ohlc['open']
+            sell_price = None
             stoploss_buy = ohlc['close']
             stoploss_sell = None
         
         if ret == const.OPEN_NEAR_HIGH_WICK_RED:
             buy_price = ohlc['high']
-            sell_price = ohlc['close']
+            sell_price = None
+            #sell_price = ohlc['close']
             stoploss_buy = ohlc['open']
             stoploss_sell = None
             
         
         if ret == const.OPEN_NEAR_LOW_WICK_GREEN:
-            buy_price = ohlc['close']
+            #buy_price = ohlc['close']
+            buy_price = None
             sell_price = ohlc['low']
             stoploss_buy = None
             stoploss_sell = ohlc['open']
 
         if ret == const.OPEN_NEAR_LOW_WICK_RED:
-            buy_price = ohlc['open']
+            #uy_price = ohlc['open']
+            buy_price = None
             sell_price = ohlc['low']
             stoploss_buy = None
             stoploss_sell = ohlc['close']
@@ -286,10 +292,15 @@ def main():
     config = ConfigParser.ConfigParser()
     config.read(config_dict['data_access'])
     access_token = config.get('MAIN','DATA_ACCESS_TOKEN')
+   
+    #my_api = "yvyxm4vynkq1pj8q"
+    #my_api_secret = "53ekyylrx3orbb85l8isj4o291o22g31" 
     
-    kite = KiteConnect(api_key="yvyxm4vynkq1pj8q")
+    my_api = str(config_dict['kite_api_key'])
+    my_api_secret = str(config_dict['kite_api_secret'])
+    
+    kite = KiteConnect(api_key=my_api)
     url = kite.login_url()
-    api_key = "yvyxm4vynkq1pj8q"
     # Redirect the user to the login url obtained
     # from kite.login_url(), and receive the request_token
     # from the registered redirect url after the login flow.
@@ -299,7 +310,7 @@ def main():
     if request_token == None:
         kite.set_access_token(access_token)
     else:
-        data = kite.generate_session(request_token, api_secret="53ekyylrx3orbb85l8isj4o291o22g31")
+        data = kite.generate_session(request_token, api_secret=my_api_secret)
         kite.set_access_token(data["access_token"])
         access_token = data["access_token"]
         config.set('MAIN','DATA_ACCESS_TOKEN', data["access_token"])
@@ -318,6 +329,15 @@ def main():
     
     # open file to write buy/sell orders
     fp = open(config_dict['cbo_seed_file'], "w")
+   
+    # write header
+    outstring = "########################################################################################\n"
+    fp.write(outstring)
+    outstring = "# CBO file generated for " + time.strftime("%c") +"\n"
+    fp.write(outstring)
+    outstring = "########################################################################################\n"
+    fp.write(outstring)
+
     count = int(0)
     quotes = kite.quote(quote_list)
     for each in quotes:
@@ -340,6 +360,9 @@ def main():
     order_list = []
     fp = open(config_dict['cbo_seed_file'])
     for each in fp:
+        #ignore line starting with #
+        if each.startswith("#"):
+            continue
         each = each.rstrip()
         order_list.append(each.split(" "))
     fp.close()
