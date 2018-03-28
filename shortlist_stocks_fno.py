@@ -12,7 +12,12 @@ DEFAULT_DIR="bhavcopy"
 fno_dict = {}
 bullish_engulfing = []
 bearing_engulfing = []
-
+open_low = []
+open_high = []
+close_low = []
+close_high = []
+bar = []
+close_wicks = []
 
 def get_list_of_files(dir_name):
     print "Directory name: ", dir_name
@@ -35,7 +40,6 @@ def populate_base(files, fno):
         fno_dict[each]['low'] = []
         fno_dict[each]['close'] = []
 
-
     for f in files:
         file_name = "bhavcopy/" + f
         fp = open(file_name)
@@ -55,19 +59,89 @@ def populate_base(files, fno):
 def get_overlapping_candle(fno):
     global bullish_engulfing
     global bearing_engulfing
+    global open_low, open_high, close_low, close_high
+    global bar, close_wicks
 
     for each in fno:
         # Green candle
         # 0 - open lower than low of previous, close higher than high of previous
         if float(fno[each]['open'][0]) <= float(fno[each]['low'][1]):
             if float(fno[each]['close'][0]) >= float(fno[each]['high'][1]):
-                print "Here with bullish engulfing"
-                print each
+                bullish_engulfing.append(each)
 
         if float(fno[each]['open'][0]) >= float(fno[each]['high'][1]):
             if float(fno[each]['close'][0]) <= float(fno[each]['low'][1]):
-                print "Here with bearish engulfing"
-                print each
+                bearing_engulfing.append(each)
+
+
+        if float(fno[each]['open'][0]) == float(fno[each]['high'][0]):
+            low_wick = utils.get_floating_value(float(fno[each]['low'][0]) * float(0.005))
+            if (float(fno[each]['close'][0]) - float(fno[each]['low'][0])) <= float(low_wick):
+                open_high.append(each)
+
+        if float(fno[each]['open'][0]) == float(fno[each]['low'][0]):
+            high_wick = utils.get_floating_value(float(fno[each]['high'][0]) * float(0.005))
+            if (float(fno[each]['high'][0]) - float(fno[each]['close'][0])) <= float(high_wick):
+                open_low.append(each)
+
+        if float(fno[each]['open'][0]) > float(fno[each]['close'][0]):
+            low_wick = utils.get_floating_value(float(fno[each]['low'][0]) * float(0.005))
+            if (float(fno[each]['close'][0]) - float(fno[each]['low'][0])) <= float(low_wick):
+                close_wicks.append(each)
+            
+        if float(fno[each]['open'][0]) < float(fno[each]['close'][0]):
+            high_wick = utils.get_floating_value(float(fno[each]['high'][0]) * float(0.005))
+            if (float(fno[each]['high'][0]) - float(fno[each]['close'][0])) <= float(high_wick):
+                close_wicks.append(each)
+
+        if float(fno[each]['close'][0]) == float(fno[each]['low'][0]):
+            close_low.append(each)
+
+        if float(fno[each]['close'][0]) == float(fno[each]['high'][0]):
+            close_high.append(each)
+
+
+        if float(fno[each]['open'][0]) == float(fno[each]['low'][0]):
+            if float(fno[each]['close'][0]) == float(fno[each]['high'][0]):
+                bar.append(each)
+        
+        if float(fno[each]['open'][0]) == float(fno[each]['high'][0]):
+            if float(fno[each]['close'][0]) == float(fno[each]['low'][0]):
+                bar.append(each)
+
+
+    print "---------------------------------------------------------------------------"
+    print "Bar\n"
+    print bar
+
+    print "---------------------------------------------------------------------------"
+    print "Open high and close within 0.5%"
+    print open_high
+
+    print "---------------------------------------------------------------------------"
+    print "Open low and close within 0.5%"
+    print open_low
+
+    print "---------------------------------------------------------------------------"
+    print "Bullish Engulfing"
+    print bullish_engulfing
+
+    print "---------------------------------------------------------------------------"
+    print "Bearish Engulfing"
+    print bearing_engulfing
+
+    print "---------------------------------------------------------------------------"
+    print "close == low"
+    print close_low
+
+    print "---------------------------------------------------------------------------"
+    print "close == high"
+    print close_high
+
+    print "---------------------------------------------------------------------------"
+    print "Close near 0.5% wicks"
+    print close_wicks
+    print "---------------------------------------------------------------------------"
 
 
 
