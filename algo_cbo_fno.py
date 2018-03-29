@@ -262,6 +262,7 @@ def main():
         quote_list.append(entry)
         sub_list.append(int(each['instrument_token']))
         fno_mapping[int(each['instrument_token'])] = str(each['tradingsymbol'])
+
     print "=============================="
     print fno_mapping
     print "=============================="

@@ -7,7 +7,7 @@ import sys
 import os
 import utils
 import ConfigParser
-
+import kite_utils
 
 # python program_name ref_file watchlist <request token>
 
@@ -234,8 +234,7 @@ def main():
     # get yesterdays high low
     base_dict = get_yesterdays_ohlc(sys.argv[1])
 
-    #simulate(sys.argv[2])
-
+    '''
     #open kite connection 
     if len(sys.argv) == int(NO_OF_PARAMS) + int(1):
         request_token = sys.argv[3]
@@ -267,6 +266,9 @@ def main():
         with open(config_dict['data_access'], 'wb') as configfile:
             config.write(configfile)
     print kite
+    '''
+
+    kite = kite_utils.kite_login()
     # get instrument list
     quote_list = []
     data = kite.instruments("NSE")

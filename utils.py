@@ -1,6 +1,55 @@
 #!/usr/bin/python
 import ConfigParser
 import constants as const
+import time
+import logging
+
+
+################################################################################
+# Function place_orders
+# accepts below arguments
+# - kite instance
+# - trading symbol
+# - transaction_type
+# - price
+# - trigger_price
+# - squareoff
+# - stoploss
+################################################################################
+def place_orders(kite, symbol, trans_t, price, trigger_price, squareoff, stoploss):
+    try:
+        order_id = kite.place_order(
+                    tradingsymbol=str(symbol),
+                    exchange="NSE", 
+                    transaction_type=str(trans_t),
+                    quantity=1,
+                    order_type="SL",
+                    product="BO",
+                    price = float(price),
+                    trigger_price = float(trigger_price),
+                    squareoff = float(squareoff),
+                    stoploss = float(stoploss),
+                    variety = "bo",
+                    validity = "DAY"
+                    )
+
+        logging.info("Order placed. ID is: {}".format(order_id))
+    except Exception as e:
+        logging.info("Order placement failed: {}".format(e.message))
+
+
+################################################################################
+# Function: write_header
+# Utility function used for writting header into file
+################################################################################
+def write_header(fp, file_type):
+    outstring = "########################################################################################\n"
+    fp.write(outstring)
+    outstring = "#" + file_type + " file generated for " + time.strftime("%c") +"\n"
+    fp.write(outstring)
+    outstring = "########################################################################################\n"
+    fp.write(outstring)
+
 
 ################################################################################
 # Function: check_open_price()

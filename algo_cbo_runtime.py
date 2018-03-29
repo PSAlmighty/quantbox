@@ -279,47 +279,6 @@ def main():
     # get yesterdays high low
     base_dict = get_yesterdays_ohlc(sys.argv[1])
     
-    '''
-    #simulate(sys.argv[2])
-    #return 
-    #open kite connection 
-    if len(sys.argv) == int(NO_OF_PARAMS) + int(1):
-        request_token = sys.argv[2]
-    else:
-        request_token = None
-    
-    #kite = kite_utils.kite_login(request_token)
-    config = ConfigParser.ConfigParser()
-    config.read(config_dict['data_access'])
-    access_token = config.get('MAIN','DATA_ACCESS_TOKEN')
-   
-    #my_api = "yvyxm4vynkq1pj8q"
-    #my_api_secret = "53ekyylrx3orbb85l8isj4o291o22g31" 
-    
-    my_api = str(config_dict['kite_api_key'])
-    my_api_secret = str(config_dict['kite_api_secret'])
-    
-    kite = KiteConnect(api_key=my_api)
-    url = kite.login_url()
-    # Redirect the user to the login url obtained
-    # from kite.login_url(), and receive the request_token
-    # from the registered redirect url after the login flow.
-    # Once you have the request_token, obtain the access_token
-    # as follows.
-    # sys.argv[1] is access token that we get from login
-    if request_token == None:
-        kite.set_access_token(access_token)
-    else:
-        data = kite.generate_session(request_token, api_secret=my_api_secret)
-        kite.set_access_token(data["access_token"])
-        access_token = data["access_token"]
-        config.set('MAIN','DATA_ACCESS_TOKEN', data["access_token"])
-
-        with open(config_dict['data_access'], 'wb') as configfile:
-            config.write(configfile)
-    prit kite
-    '''
-
     kite = kite_utils.login_kite(None)
 
     # get instrument list
@@ -333,14 +292,9 @@ def main():
     
     # open file to write buy/sell orders
     fp = open(config_dict['cbo_seed_file'], "w")
-   
+  
     # write header
-    outstring = "########################################################################################\n"
-    fp.write(outstring)
-    outstring = "# CBO file generated for " + time.strftime("%c") +"\n"
-    fp.write(outstring)
-    outstring = "########################################################################################\n"
-    fp.write(outstring)
+    utils.write_header(fp, "CBO")
 
     count = int(0)
     quotes = kite.quote(quote_list)
@@ -359,42 +313,54 @@ def main():
         if (sell != None):
             fp.write(sell)
     fp.close()
-    
+
+    # create dictionary for active orders
+    # write utility fuction for order management
+
     # push all the orders
     order_list = []
+    order_dict = {}
     fp = open(config_dict['cbo_seed_file'])
     for each in fp:
         #ignore line starting with #
         if each.startswith("#"):
             continue
         each = each.rstrip()
-        order_list.append(each.split(" "))
-    fp.close()
-    print "----------------------------------------------------------------"
-    print order_list
-    print "----------------- End of order list ----------------------------"
-    
-    for each in order_list:
-        try:
-            print each
-            order_id = kite.place_order(
-                    tradingsymbol=str(each[SCRIP_ID]),
-                    exchange="NSE", 
-                    transaction_type=str(each[ACTION_ID]),
-                    quantity=1,
-                    order_type="SL",
-                    product="BO",
-                    price = float(each[PRICE_ID]),
-                    trigger_price = float(each[TRIGGER_ID]),
-                    squareoff = float(each[TARGET_ID]),
-                    stoploss = float(each[STOPLOSS_ID]),
-                    variety = "bo",
-                    validity = "DAY"
-                    )
+        line = each.split(" ")
+        scrip = line[SCRIP_ID]
+        action = line[ACTION_ID]
+        price = line[PRICE_ID]
+        t_price = line[TRIGGER_ID]
+        target = line[TARGET_ID]
+        stoploss = line[STOPLOSS_ID]
 
-            logging.info("Order placed. ID is: {}".format(order_id))
-        except Exception as e:
-            logging.info("Order placement failed: {}".format(e.message))
+        if line[SCRIP_ID] not in order_dict:
+            order_dict[scrip] = {}
+            order_dict[scrip][action] = {}
+        else:
+            order_dict[scrip][action] = {}
+
+        order_dict[scrip][action]['price'] = price
+        order_dict[scrip][action]['trigger_price'] = t_price
+        order_dict[scrip][action]['target'] = target
+        order_dict[scrip][action]['stoploss'] = stoploss
+        order_dict[scrip][action]['flag'] = 0
+        
+
+    fp.close()
+    
+    print "----------------------------------------------------------------"
+    print order_dict
+    print "----------------- End of order list ----------------------------"
+  
+     
+
+    '''
+    for each in order_list:
+        utils.place_orders(kite, str(each[SCRIP_ID]),str(each[ACTION_ID]),
+                    float(each[PRICE_ID]), float(each[TRIGGER_ID]),
+                    float(each[TARGET_ID]),float(each[STOPLOSS_ID]))
+    '''
 
 
 if __name__ == "__main__":
