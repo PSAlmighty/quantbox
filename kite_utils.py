@@ -53,7 +53,7 @@ def login_kite(request_token):
         with open(config_dict['data_access'], 'wb') as configfile:
             config.write(configfile)
 
-    return kite
+    return my_api, access_token, kite
 
 
 def main():

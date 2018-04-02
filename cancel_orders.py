@@ -26,8 +26,8 @@ def main():
     inst_token = []
     config_dict = utils.read_config_file()
 
-    kite = kite_utils.kite_login()
-    
+    acccess_toke, request_token, kite = kite_utils.login_kite(None)
+    print kite    
     orders = kite.orders()
     print "======================================================="
     for each in orders:

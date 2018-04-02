@@ -262,7 +262,7 @@ def main():
     config_dict = utils.read_config_file()
     
     # get list of fno
-    fno_dict = utils.get_fno_dict()
+    fno_dict = utils.get_watchlist_dict(sys.argv[2])
 
     # get yesterdays high low
     base_dict = get_yesterdays_ohlc(sys.argv[1])

@@ -7,15 +7,15 @@ import sys
 import os
 import utils
 import ConfigParser
+import time
 import kite_utils
 
-# python program_name ref_file watchlist <request token>
 
 fno_dict = {}
 base_dict = {}
 config_dict = {}
 orders = {}
-NO_OF_PARAMS = 3
+NO_OF_PARAMS = 2
 
 # This is index into 
 SCRIP_ID    = 0
@@ -28,7 +28,6 @@ STOPLOSS_ID = 5
 ################################################################################
 # Function: check_open_price()
 # This function is the crux of this algorithm
-# TODO: Write all the cases 
 ################################################################################
 def check_open_price(scrip, ohlc, open_price):
 
@@ -73,24 +72,46 @@ def check_open_price(scrip, ohlc, open_price):
 # Function: get_order_string()
 # This function will return the 
 ################################################################################
-def get_order_string(scrip, action, price):
+def get_order_string(scrip, action, price, stoploss_buy, stoploss_sell):
     outstring = ""
+    
+    if (price == None):
+        return None
 
     if action == "BUY":
         trigger_price = float(utils.get_floating_value(price)) +  float(0.10)
         price = trigger_price
         target = float(utils.get_floating_value(float(trigger_price) * float(config_dict['target_lock'])))
-        stoploss = float(utils.get_floating_value(float(trigger_price) * float(config_dict['stoploss_lock'])))
+        if (stoploss_buy == None):
+            stoploss = float(utils.get_floating_value(float(trigger_price) * float(config_dict['stoploss_lock'])))
+        else:
+            stoploss = float(utils.get_floating_value(float(price) - float(stoploss_buy)))
         outstring = scrip + " " + action + " " + str(trigger_price) + " " + str(price) + " " + str(target) + " " + str(stoploss) +"\n"
 
     if action == "SELL":
         trigger_price = float(utils.get_floating_value(price)) -  float(0.10)
         price = trigger_price
         target = float(utils.get_floating_value(float(trigger_price) * float(config_dict['target_lock'])))
-        stoploss = float(utils.get_floating_value(float(trigger_price) * float(config_dict['stoploss_lock'])))
+        if (stoploss_sell == None):
+            stoploss = float(utils.get_floating_value(float(trigger_price) * float(config_dict['stoploss_lock'])))
+        else:
+            stoploss = float(utils.get_floating_value(float(stoploss_sell) - float(price)))
         outstring = scrip + " " + action + " " + str(trigger_price) + " " + str(price) + " " + str(target) + " " + str(stoploss) +"\n"
 
     return outstring
+
+
+################################################################################
+#
+################################################################################
+def check_if_doji(ohlc):
+    if (float(ohlc['open']) > float(ohlc['close'])):
+        diff = float(float(ohlc['open']) -float(ohlc['close']))
+    else:
+        diff = float(float(ohlc['close']) -float(ohlc['open']))
+
+    if float(diff) < (float(ohlc['open']) * 0.0051):
+        return const.DOJI
 
 ################################################################################
 #
@@ -104,34 +125,62 @@ def generate_orders(scrip, ohlc, open_price):
     if ((ret == const.OPEN_GAP_UP) or (ret == const.OPEN_GAP_DOWN)):
         return buy_order, sell_order
     
-    if ret == const.OPEN_INSIDE_BODY_GREEN:
-        buy_price = ohlc['close']
-        sell_price = ohlc['open']
-
-    if ret == const.OPEN_INSIDE_BODY_RED:
-        buy_price = ohlc['open']
-        sell_price = ohlc['close']
-
-
-    if ret == const.OPEN_NEAR_HIGH_WICK_GREEN:
+    #check if doji
+    ret1 = check_if_doji(ohlc)
+    if ret1 == const.DOJI:
+        print "doji  ", scrip
         buy_price = ohlc['high']
-        sell_price = ohlc['open']
-    
-    if ret == const.OPEN_NEAR_HIGH_WICK_RED:
-        buy_price = ohlc['high']
-        sell_price = ohlc['close']
+        sell_price = ohlc['low']
+        stoploss_buy = None
+        stoploss_sell = None
+    else:
+
+        if ret == const.OPEN_INSIDE_BODY_GREEN:
+            buy_price = ohlc['close']
+            sell_price = ohlc['open']
+            stoploss_buy = None
+            stoploss_sell = None
+
+        if ret == const.OPEN_INSIDE_BODY_RED:
+            buy_price = ohlc['open']
+            sell_price = ohlc['close']
+            stoploss_buy = None
+            stoploss_sell = None
+            #stoploss_buy = open_price
+            #stoploss_sell = open_price
+
+
+        if ret == const.OPEN_NEAR_HIGH_WICK_GREEN:
+            buy_price = ohlc['high']
+            #sell_price = ohlc['open']
+            sell_price = None
+            stoploss_buy = ohlc['close']
+            stoploss_sell = None
         
+        if ret == const.OPEN_NEAR_HIGH_WICK_RED:
+            buy_price = ohlc['high']
+            sell_price = None
+            #sell_price = ohlc['close']
+            stoploss_buy = ohlc['open']
+            stoploss_sell = None
+            
+        
+        if ret == const.OPEN_NEAR_LOW_WICK_GREEN:
+            #buy_price = ohlc['close']
+            buy_price = None
+            sell_price = ohlc['low']
+            stoploss_buy = None
+            stoploss_sell = ohlc['open']
+
+        if ret == const.OPEN_NEAR_LOW_WICK_RED:
+            #uy_price = ohlc['open']
+            buy_price = None
+            sell_price = ohlc['low']
+            stoploss_buy = None
+            stoploss_sell = ohlc['close']
     
-    if ret == const.OPEN_NEAR_LOW_WICK_GREEN:
-        buy_price = ohlc['close']
-        sell_price = ohlc['low']
-    
-    if ret == const.OPEN_NEAR_LOW_WICK_RED:
-        buy_price = ohlc['open']
-        sell_price = ohlc['low']
-    
-    buy_outstring = get_order_string(scrip, "BUY", buy_price)
-    sell_outstring = get_order_string(scrip, "SELL", sell_price)
+    buy_outstring =  get_order_string(scrip, "BUY", buy_price, stoploss_buy, stoploss_sell)
+    sell_outstring = get_order_string(scrip, "SELL", sell_price, stoploss_buy, stoploss_sell)
     
     return buy_outstring, sell_outstring
     
@@ -212,63 +261,26 @@ def main():
     print "Executing CBO Algo for Equities"
     print "-------------------------------"
 
-    global fno_dict
-    global base_dict
-    global config_dict
-    global orders
+    global fno_dict, base_dict, config_dict, orders
 
     inst_token = []
 
     #TODO: Add argparser for validating input
     if len(sys.argv) < NO_OF_PARAMS:
         print "Invalid number of params"
-        return
+        #return
 
     # read config file
     config_dict = utils.read_config_file()
-    print config_dict
     
     # get list of fno
     fno_dict = utils.get_watchlist_dict(sys.argv[2])
 
     # get yesterdays high low
     base_dict = get_yesterdays_ohlc(sys.argv[1])
-
-    '''
-    #open kite connection 
-    if len(sys.argv) == int(NO_OF_PARAMS) + int(1):
-        request_token = sys.argv[3]
-    else:
-        request_token = None
     
-    #kite = kite_utils.kite_login(request_token)
-    config = ConfigParser.ConfigParser()
-    config.read(config_dict['data_access'])
-    access_token = config.get('MAIN','DATA_ACCESS_TOKEN')
-    
-    kite = KiteConnect(api_key="yvyxm4vynkq1pj8q")
-    url = kite.login_url()
-    api_key = "yvyxm4vynkq1pj8q"
-    # Redirect the user to the login url obtained
-    # from kite.login_url(), and receive the request_token
-    # from the registered redirect url after the login flow.
-    # Once you have the request_token, obtain the access_token
-    # as follows.
-    # sys.argv[1] is access token that we get from login
-    if request_token == None:
-        kite.set_access_token(access_token)
-    else:
-        data = kite.generate_session(request_token, api_secret="53ekyylrx3orbb85l8isj4o291o22g31")
-        kite.set_access_token(data["access_token"])
-        access_token = data["access_token"]
-        config.set('MAIN','DATA_ACCESS_TOKEN', data["access_token"])
+    kite = kite_utils.login_kite(None)
 
-        with open(config_dict['data_access'], 'wb') as configfile:
-            config.write(configfile)
-    print kite
-    '''
-
-    kite = kite_utils.kite_login()
     # get instrument list
     quote_list = []
     data = kite.instruments("NSE")
@@ -280,15 +292,15 @@ def main():
     
     # open file to write buy/sell orders
     fp = open(config_dict['cbo_seed_file'], "w")
-    
+   
     # write header
     outstring = "########################################################################################\n"
     fp.write(outstring)
-    outstring = "# watchlist file generated for " + time.strftime("%c") +"\n"
+    outstring = "# CBO file generated for " + time.strftime("%c") +"\n"
     fp.write(outstring)
     outstring = "########################################################################################\n"
     fp.write(outstring)
-    
+
     count = int(0)
     quotes = kite.quote(quote_list)
     for each in quotes:
@@ -323,6 +335,7 @@ def main():
     
     for each in order_list:
         try:
+            print each
             order_id = kite.place_order(
                     tradingsymbol=str(each[SCRIP_ID]),
                     exchange="NSE", 
