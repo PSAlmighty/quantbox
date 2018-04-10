@@ -232,6 +232,7 @@ def main():
 
     # read config file
     config_dict = utils.read_config_file()
+
     # get list of fno
     fno_dict = utils.get_fno_dict()
 

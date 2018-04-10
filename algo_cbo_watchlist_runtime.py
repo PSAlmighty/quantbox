@@ -19,6 +19,7 @@ scrip_map = {}
 NO_OF_PARAMS = 2
 sub_list = []
 order_dict = {}
+my_orders = []
 # This is index into 
 SCRIP_ID    = 0
 ACTION_ID   = 1
@@ -365,15 +366,6 @@ def main():
     kws.on_reconnect = on_reconnect
     kws.on_order_update = on_order_update
     kws.connect()
-     
-
-
-    '''
-    for each in order_list:
-        utils.place_orders(kite, str(each[SCRIP_ID]),str(each[ACTION_ID]),
-                    float(each[PRICE_ID]), float(each[TRIGGER_ID]),
-                    float(each[TARGET_ID]),float(each[STOPLOSS_ID]))
-    '''
 
 ################################################################################
 # Function: on_ticks
@@ -381,7 +373,6 @@ def main():
 ################################################################################
 def on_ticks(ws, ticks):
     global kite
-    print "Coming on ticks"
     for each in ticks:
         flag = 0
         scrip = scrip_map[each['instrument_token']]
@@ -410,30 +401,45 @@ def on_ticks(ws, ticks):
                     del order_dict[scrip]
         # order management
         # moving stoplosses
+        
+        
 
-
+################################################################################
+################################################################################
 def on_connect(ws, response):
     ws.subscribe(sub_list)
     ws.set_mode(ws.MODE_FULL, sub_list);
 
+################################################################################
+################################################################################
 def on_close(ws, code, reason):
     logging.error("closed connection on close: {} {}".format(code, reason))
 
 
+################################################################################
+################################################################################
 def on_error(ws, code, reason):
     logging.error("closed connection on error: {} {}".format(code, reason))
 
 
+################################################################################
+################################################################################
 def on_noreconnect(ws):
     logging.error("Reconnecting the websocket failed")
 
 
+################################################################################
+################################################################################
 def on_reconnect(ws, attempt_count):
     logging.debug("Reconnecting the websocket: {}".format(attempt_count))
 
 
+################################################################################
+################################################################################
 def on_order_update(ws, data):
-    print("order update: ", data)
+    global kite
+    global my_orders
+    my_orders = kite.orders()
 
 
 if __name__ == "__main__":

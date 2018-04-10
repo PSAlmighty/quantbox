@@ -19,6 +19,7 @@ scrip_map = {}
 NO_OF_PARAMS = 2
 sub_list = []
 order_dict = {}
+my_orders = []
 # This is index into 
 SCRIP_ID    = 0
 ACTION_ID   = 1
@@ -144,27 +145,35 @@ def generate_orders(scrip, ohlc, open_price):
         if ret == const.OPEN_NEAR_HIGH_WICK_GREEN:
             buy_price = ohlc['high']
             sell_price = None
-            stoploss_buy = ohlc['close']
+            #stoploss_buy = ohlc['close']
+            #stoploss_sell = None
+            stoploss_buy = None
             stoploss_sell = None
         
         if ret == const.OPEN_NEAR_HIGH_WICK_RED:
             buy_price = ohlc['high']
             sell_price = None
-            stoploss_buy = ohlc['open']
+            #stoploss_buy = ohlc['open']
+            #stoploss_buy = None
+            stoploss_buy = None
             stoploss_sell = None
             
         
         if ret == const.OPEN_NEAR_LOW_WICK_GREEN:
             buy_price = None
             sell_price = ohlc['low']
+            #stoploss_buy = None
+            #stoploss_sell = ohlc['open']
             stoploss_buy = None
-            stoploss_sell = ohlc['open']
+            stoploss_sell = None
 
         if ret == const.OPEN_NEAR_LOW_WICK_RED:
             buy_price = None
             sell_price = ohlc['low']
+            #stoploss_buy = None
+            #stoploss_sell = ohlc['close']
             stoploss_buy = None
-            stoploss_sell = ohlc['close']
+            stoploss_sell = None
     
     buy_outstring =  get_order_string(scrip, "BUY", buy_price, stoploss_buy, stoploss_sell)
     sell_outstring = get_order_string(scrip, "SELL", sell_price, stoploss_buy, stoploss_sell)
@@ -367,21 +376,14 @@ def main():
     kws.connect()
      
 
-
-    '''
-    for each in order_list:
-        utils.place_orders(kite, str(each[SCRIP_ID]),str(each[ACTION_ID]),
-                    float(each[PRICE_ID]), float(each[TRIGGER_ID]),
-                    float(each[TARGET_ID]),float(each[STOPLOSS_ID]))
-    '''
-
 ################################################################################
 # Function: on_ticks
 # things to perform on every tick
 ################################################################################
 def on_ticks(ws, ticks):
     global kite
-    print "Coming on ticks"
+    global my_orders
+    
     for each in ticks:
         flag = 0
         scrip = scrip_map[each['instrument_token']]
@@ -390,18 +392,20 @@ def on_ticks(ws, ticks):
                 # if order == BUY
                 if order == "BUY":
                     if float(each['last_price']) >= float(order_dict[scrip][order]['live_price']):
-                        utils.place_orders(kite, str(scrip),str(order),
-                                float(order_dict[scrip][order]['price']), float(order_dict[scrip][order]['trigger_price']),
-                                float(order_dict[scrip][order]['target']),float(order_dict[scrip][order]['stoploss']))
-                        print "Put buy order"
+                        #utils.place_orders(kite, str(scrip),str(order),
+                        #        float(order_dict[scrip][order]['price']), float(order_dict[scrip][order]['trigger_price']),
+                        #        float(order_dict[scrip][order]['target']),float(order_dict[scrip][order]['stoploss']))
+                        print "\n BUY ", scrip, "target = ", order_dict[scrip][order]['target'], " stoploss = ", order_dict[scrip][order]['stoploss'] 
                         flag = 1
                 # if order == SELL
                 else:
                     if float(each['last_price']) <= float(order_dict[scrip][order]['live_price']):
+                        '''
                         utils.place_orders(kite, str(scrip),str(order),
                                 float(order_dict[scrip][order]['price']), float(order_dict[scrip][order]['trigger_price']),
                                 float(order_dict[scrip][order]['target']),float(order_dict[scrip][order]['stoploss']))
-                        print "Put sell order"
+                        '''
+                        print "\n SELL ", scrip, "target = ", order_dict[scrip][order]['target'], " stoploss = ", order_dict[scrip][order]['stoploss'] 
                         flag = 1
 
             if flag == 1:    
@@ -411,30 +415,44 @@ def on_ticks(ws, ticks):
         # order management
         # moving stoplosses
 
-
+################################################################################
+################################################################################
 def on_connect(ws, response):
     ws.subscribe(sub_list)
     ws.set_mode(ws.MODE_FULL, sub_list);
 
+################################################################################
+################################################################################
 def on_close(ws, code, reason):
     logging.error("closed connection on close: {} {}".format(code, reason))
 
 
+################################################################################
+################################################################################
 def on_error(ws, code, reason):
     logging.error("closed connection on error: {} {}".format(code, reason))
 
 
+################################################################################
+################################################################################
 def on_noreconnect(ws):
     logging.error("Reconnecting the websocket failed")
 
 
+################################################################################
+################################################################################
 def on_reconnect(ws, attempt_count):
     logging.debug("Reconnecting the websocket: {}".format(attempt_count))
 
 
+################################################################################
+################################################################################
 def on_order_update(ws, data):
-    print("order update: ", data)
+    global kite, my_orders
+    my_orders = kite.orders()
 
 
+################################################################################
+################################################################################
 if __name__ == "__main__":
     main()
